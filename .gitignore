@@ -1,52 +1,81 @@
-# Prerequisites
-*.d
+#include<ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266HTTPClient.h>
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+const char* ssid = "iot";
+const char* password = "12345678";
+char serverName[] = "http://iotcloud22.in/1057_gas/post_value.php";
 
-# Linker output
-*.ilk
-*.map
-*.exp
+WiFiClient client;
+HTTPClient http;
+int gas;
 
-# Precompiled Headers
-*.gch
-*.pch
+String httpRequestData;
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+void setup() {
+  Serial.begin(9600);
+  pinMode(A0, INPUT);
+  //pinMode(D6, INPUT);
+  pinMode(D7, OUTPUT);
+  pinMode(D6, OUTPUT);
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+  digitalWrite(D7, LOW);
+  digitalWrite(D6, LOW);
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.print(WiFi.localIP());
+  delay(1000);
 
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
+}
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+void loop() {
+  gas = analogRead(A0);
+  Serial.println(gas);
+
+  if (gas > 500)
+  {
+    digitalWrite(D7, HIGH);
+    digitalWrite(D6, HIGH);
+  }
+  else {
+    digitalWrite(D7, LOW);
+    digitalWrite(D6, LOW);
+  }
+  sending_to_db();
+}
+
+void sending_to_db()
+{
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    http.begin(client, serverName);
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+
+    httpRequestData = "&value1=" + String(gas) + "";
+    //    Serial.print("httpRequestData: ");
+    Serial.println(httpRequestData);
+    int httpResponseCode = http.POST(httpRequestData);
+    if (httpResponseCode > 0) {
+      Serial.print("HTTP Response code: ");
+      Serial.println(httpResponseCode);
+    }
+    else {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
+  }
+  else {
+    Serial.println("WiFi Disconnected");
+  }
+
+  delay(1000);
+}
